@@ -1,0 +1,133 @@
+-- Drop previous tables and views if they exist
+DROP VIEW IF EXISTS ViewCustomerAccounts, ViewCustomerLoans;
+DROP TABLE IF EXISTS Loan, Transaction, Account, Customer, Branch, AcctSequence;
+
+-- 1. Create tables with all constraints
+
+CREATE TABLE Branch (
+    branch_id INT PRIMARY KEY,
+    branch_name VARCHAR(100) NOT NULL,
+    city VARCHAR(50) NOT NULL
+);
+
+CREATE TABLE Customer (
+    customer_id INT PRIMARY KEY,
+    customer_name VARCHAR(100) NOT NULL,
+    phone VARCHAR(15),
+    address VARCHAR(255)
+);
+
+CREATE TABLE Account (
+    acct_no INT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    branch_id INT NOT NULL,
+    balance DECIMAL(12,2) NOT NULL,
+    acct_type VARCHAR(20),
+    FOREIGN KEY (customer_id) REFERENCES Customer(customer_id),
+    FOREIGN KEY (branch_id) REFERENCES Branch(branch_id)
+);
+
+CREATE TABLE Transaction (
+    txn_id INT AUTO_INCREMENT PRIMARY KEY,
+    acct_no INT NOT NULL,
+    txn_type VARCHAR(10), -- 'credit' or 'debit'
+    amount DECIMAL(10,2),
+    txn_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (acct_no) REFERENCES Account(acct_no)
+);
+
+CREATE TABLE Loan (
+    loan_id INT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    branch_id INT NOT NULL,
+    amount DECIMAL(12,2),
+    status VARCHAR(20), -- approved, pending, closed
+    FOREIGN KEY (customer_id) REFERENCES Customer(customer_id),
+    FOREIGN KEY (branch_id) REFERENCES Branch(branch_id)
+);
+
+-- 2. Insert sample values
+
+INSERT INTO Branch VALUES
+(1, 'Central Branch', 'Delhi'),
+(2, 'MG Road Branch', 'Pune'),
+(3, 'Park Street Branch', 'Kolkata');
+
+INSERT INTO Customer VALUES
+(101, 'Rahul Sharma', '9876543210', 'Delhi'),
+(102, 'Neha Desai', '9823456789', 'Mumbai'),
+(103, 'Amit Verma', '9898989898', 'Pune'),
+(104, 'Sneha Kulkarni', '9845012345', 'Bangalore');
+
+INSERT INTO Account VALUES
+(1001, 101, 1, 80000.00, 'Savings'),
+(1002, 102, 2, 25000.00, 'Current'),
+(1003, 103, 2, 30000.00, 'Savings'),
+(1004, 104, 3, 150000.00, 'Savings');
+
+INSERT INTO Transaction (acct_no, txn_type, amount) VALUES
+(1001, 'credit', 5000),
+(1001, 'debit', 2000),
+(1002, 'credit', 7000),
+(1003, 'debit', 1000),
+(1004, 'credit', 15000);
+
+INSERT INTO Loan VALUES
+(201, 101, 1, 150000, 'approved'),
+(202, 102, 2, 200000, 'pending'),
+(203, 104, 3, 500000, 'approved');
+
+-- 3. Create views using join
+
+CREATE VIEW ViewCustomerAccounts AS
+SELECT 
+    c.customer_id, 
+    c.customer_name, 
+    a.acct_no, 
+    a.acct_type, 
+    a.balance, 
+    b.branch_name
+FROM 
+    Customer c
+JOIN 
+    Account a ON c.customer_id = a.customer_id
+JOIN 
+    Branch b ON a.branch_id = b.branch_id;
+
+CREATE VIEW ViewCustomerLoans AS
+SELECT 
+    c.customer_id, 
+    c.customer_name, 
+    l.loan_id, 
+    l.amount, 
+    l.status, 
+    b.branch_name
+FROM 
+    Customer c
+JOIN 
+    Loan l ON c.customer_id = l.customer_id
+JOIN 
+    Branch b ON l.branch_id = b.branch_id;
+
+-- 4. Create index on Customer name (CustomerId index)
+CREATE INDEX CustomerId ON Customer (customer_name ASC);
+
+-- 5. Simulate sequence for acct_no (using auto-increment helper table)
+CREATE TABLE AcctSequence (
+    next_acct INT AUTO_INCREMENT PRIMARY KEY
+);
+
+-- Example usage:
+-- INSERT INTO AcctSequence VALUES (NULL);
+-- SELECT LAST_INSERT_ID(); -- Gives next account number to be used manually
+-- Check views
+SELECT * FROM ViewCustomerAccounts;
+SELECT * FROM ViewCustomerLoans;
+
+-- Check index (via explain if needed)
+EXPLAIN SELECT * FROM Customer WHERE customer_name = 'Neha Desai';
+
+-- Generate next acct_no manually
+INSERT INTO AcctSequence VALUES (NULL);
+SELECT LAST_INSERT_ID(); -- Next acct_no
+
